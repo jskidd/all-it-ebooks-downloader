@@ -70,7 +70,8 @@ def download_everything():
 def get_page_content(url):
 	page = requests.get(url)
 	page_content = page.content
-	soup = BeautifulSoup(page_content, "html.parser")
+	#soup = BeautifulSoup(page_content, "html.parser")
+	soup = BeautifulSoup(page_content)
 	return soup
 
 def get_books_in_page(page_soup):
@@ -80,12 +81,12 @@ def get_books_in_page(page_soup):
 
 	for book in books:
 		#try:
-			title = book.find("h1").get_text()
+			#title = book.find("h1").get_text()
 			book_url = book.find("a")["href"]
 			file_url = get_file_link(book_url)
 
 			book_entry = {
-				"title": title,
+				#"title": title,
 				"url": book_url,
 				"file_url": file_url,
 			}
@@ -105,7 +106,7 @@ def download_file(url):
 	# NOTE the stream=True parameter
 	r = requests.get(url, stream=True)
 	with open(local_filename, 'wb') as f:
-		for chunk in r.iter_content(chunk_size=1024): 
+		for chunk in r.iter_content(chunk_size=1024):
 			if chunk: # filter out keep-alive new chunks
 				f.write(chunk)
 
@@ -123,7 +124,9 @@ def download_search(term):
 		for page_num in range(1, page_max + 1):
 			url = 'http://www.allitebooks.com/page/{}/?s={}'.format(str(page_num), term)
 			soup = get_page_content(url)
+			print url
 			books_in_page = get_books_in_page(soup)
+			print books_in_page
 			for booknum, bookdata in books_in_page.iteritems(): #Adaptar a dict
 				book_url = books_in_page[booknum]["file_url"]
 				splitted_url = book_url.split("/")
@@ -167,7 +170,7 @@ def list_book_in_page(page_url):
 	selected_book = raw_input("#> ")
 	return selected_book
 
-	
+
 def book_selector(current_num):
 
 	local_num = current_num
@@ -179,7 +182,7 @@ def book_selector(current_num):
 	selected_book = list_book_in_page(sub_url)
 
 	if (selected_book == "a" or selected_book == "A"): # Ir atras
-		
+
 		if (book_page_num > 0):
 			local_num -= 1
 			book_selector(local_num)
@@ -199,11 +202,11 @@ def book_selector(current_num):
 		print "Hecho"
 
 		book_selector()
-		
+
 def main_options():
 	print "Select an option: "
 	print "[1] Download everything"
-	print "[2] Search an specific term" 
+	print "[2] Search an specific term"
 	print "[3] Navigate categories and books"
 	print ""
 
@@ -213,8 +216,8 @@ def main_options():
 		download_everything()
 
 	elif option == "2":
-		term = raw_input("Introduce el termino que quieres buscar: ")
-		print "Buscando y descargando libros de {}".format(term)
+		term = raw_input("Enter the term you want to search: ")
+		print "Searching and downloading books {}".format(term)
 		download_search(term)
 
 	elif option == "3":
