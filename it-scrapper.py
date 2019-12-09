@@ -9,7 +9,8 @@
 from bs4 import BeautifulSoup
 import requests
 import os, sys
-
+from Tkinter import *
+import Tkinter,Tkconstants,tkFileDialog
 
 global book_page_num
 book_page_num = 0
@@ -19,7 +20,7 @@ download_links = []
 categories = {
 				1:"web-development",
 				2:"programming",
-				3:"datebases",
+				3:"databases",
 				4:"game-programming",
 				5:"graphics-design",
 				6:"operating-systems",
@@ -33,16 +34,23 @@ categories = {
 				14:"security",
 				15:"software"
 			}
+
+def get_save_dir():
+	root = Tk()
+	save_dir = tkFileDialog.askdirectory()
+	root.destroy()
+	return save_dir
+
 def list_categories():
-	print "                    CATEGORIAS                     "
+	print "                    CATEGORIES                     "
 	print "    ---------------------------------------------"
-	print "     N  |  Categoria                             "
+	print "     N  |  Categories                             "
 	print "    ---------------------------------------------"
 
 	for k,v in categories.iteritems():
 		print "    [{}] | {}".format(k,v)
 
-	selected_category = input("#> ")
+	selected_category = categories.get(input("#> "))
 	return selected_category
 
 def download_everything():
@@ -57,7 +65,8 @@ def download_everything():
 				print " "
 				print "Downloading file {} at page {}".format(book_file_name, str(page_num))
 				try:
-					download_file(book_url)
+					save_dir = get_save_dir()
+					download_file(book_url, save_dir)
 				except Exception as exc:
 					print "An error ocurred, continuing ..."
 					print str(exc)
@@ -80,29 +89,29 @@ def get_books_in_page(page_soup):
 	books = page_soup.findAll("article", {"class": "post"})
 
 	for book in books:
-		#try:
-			#title = book.find("h1").get_text()
+		try:
+			title = book.find("h2",{"class":"entry-title"}).getText()
 			book_url = book.find("a")["href"]
 			file_url = get_file_link(book_url)
 
 			book_entry = {
-				#"title": title,
+				"entry-title": title,
 				"url": book_url,
 				"file_url": file_url,
 			}
 
 			books_in_page[books.index(book)] = book_entry
 
-		#except Exception as exc:
-		#	print "An error ocurred, continuing ..."
-		#	print str(exc)
-		#	continue
+		except Exception as exc:
+			print "An error ocurred, continuing ..."
+			print str(exc)
+			continue
 
 	return books_in_page
 
 
-def download_file(url):
-	local_filename = url.split("/")[len(url.split("/")) -1]
+def download_file(url, save_dir):
+	local_filename = save_dir + "/" + url.split("/")[len(url.split("/")) -1]
 	# NOTE the stream=True parameter
 	r = requests.get(url, stream=True)
 	with open(local_filename, 'wb') as f:
@@ -121,6 +130,7 @@ def get_file_link(book_url):
 
 def download_search(term):
 	try:
+		save_dir = get_save_dir()
 		for page_num in range(1, page_max + 1):
 			url = 'http://www.allitebooks.com/page/{}/?s={}'.format(str(page_num), term)
 			soup = get_page_content(url)
@@ -133,7 +143,7 @@ def download_search(term):
 				book_file_name = splitted_url[len(splitted_url) -1]
 				print "[D] Downloading file {} at page {}".format(book_file_name, str(page_num))
 				try:
-					download_file(book_url)
+					download_file(book_url, save_dir)
 
 				except Exception as exc:
 					print "An error ocurred, continuing ..."
@@ -154,54 +164,56 @@ def list_book_in_page(page_url):
 	actual_page_num = page_url.split("/")[len(page_url.split("/")) -1 ]
 	books_in_current_page = get_books_in_page(get_page_content(extended_url)) # Pasar soup, no string
 
-	print "                LIBROS -- PAG [{}]             ".format(actual_page_num)
+	print "                Books -- Page [{}]             ".format(actual_page_num)
 	print "    ---------------------------------------------"
-	print "     N  |  Categoria                             "
+	print "     N  |  Categories                             "
 	print "    ---------------------------------------------"
 
 	for booknum, bookdata in books_in_current_page.iteritems():
-		print "    [{}] | {}".format(booknum, bookdata["title"])
+		print "    [{}] | {}".format(booknum, bookdata["entry-title"])
 
 	print ""
 	print "    ---------------------------------------------"
-	print "    <---- (A)tras       |      (S)iguiente ----->"
+	print "    <---- (B)ack       |      (F)orward ----->"
 	print "    ---------------------------------------------"
 
 	selected_book = raw_input("#> ")
 	return selected_book
 
 
-def book_selector(current_num):
+def book_selector(chosen_cat, current_num):
 
 	local_num = current_num
 	os.system("cls")
 
-	chosen_cat = list_categories()
-
 	sub_url = "/{}/page/{}".format(chosen_cat, current_num)
 	selected_book = list_book_in_page(sub_url)
 
-	if (selected_book == "a" or selected_book == "A"): # Ir atras
+	if (selected_book == "b" or selected_book == "B"): # Go back
 
 		if (book_page_num > 0):
 			local_num -= 1
-			book_selector(local_num)
+			book_selector(chosen_cat, local_num)
 
 		elif book_page_num == 0:
-			print "No puedes ir atras"
-			book_selector(local_num)
+			print "You can't go back"
+			book_selector(chosen_cat, local_num)
 
-	elif (selected_book == "s" or selected_book == "S"): # Ir adelante
+	elif (selected_book == "f" or selected_book == "F"): # Go forward
 		local_num += 1
-		book_selector(local_num)
+		book_selector(chosen_cat,local_num)
 
 	elif (selected_book not in "abcdefghijklmnopqrstuvwxyz"):
+		base_url = "http://www.allitebooks.com"
+		extended_url = (base_url + sub_url).replace(" ","-")
+		books_in_current_page = get_books_in_page(get_page_content(extended_url)) 
 		book_download_url = books_in_current_page[int(selected_book)]["file"]
-		print "Descargando..."
-		download_file(book_download_url)
-		print "Hecho"
+		save_dir = get_save_dir()
+		print "Downloading..."
+		download_file(book_download_url, save_dir)
+		print "Done"
 
-		book_selector()
+		book_selector(chosen_cat,local_num)
 
 def main_options():
 	print "Select an option: "
@@ -221,7 +233,8 @@ def main_options():
 		download_search(term)
 
 	elif option == "3":
-		book_selector(book_page_num)
+		category = list_categories()
+		book_selector(category, book_page_num)
 
 	else:
 		main_options()
